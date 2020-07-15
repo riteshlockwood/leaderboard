@@ -8,6 +8,24 @@ local errors = require('errors')
 local leaderboard_err_storage = errors.new_class("Leaderboard Storage error")
 local log = require('log')
 
+
+local function tuple_to_table(format, tuple)
+    local map = {}
+    for i, v in ipairs(format) do
+        map[v.name] = tuple[i]
+    end
+    return map
+end
+
+
+local function complete_table(major, minor)
+    for k, v in pairs(major) do
+        if minor[k] == nil then
+            minor[k] = v
+        end
+    end
+end
+
 local function init_space()
     local leader = box.schema.space.create(
         'leader',
@@ -49,18 +67,33 @@ local function leaderboard_add_leader(leader)
     return {ok = true, error = nil}
 end
 
+local function leaderboard_get_rank(id)
+    checks('number')
+
+    local leader = box.space.leader:get(id)
+    if leader == nil then
+        return {leader = nil, error = leaderboard_err_storage:new("Leader not found")}
+    end
+
+    leader = tuple_to_table(box.space.leader:format(), leader)
+
+    leader.bucket_id = nil
+
+    return { leader = leader, error = nil}
+end
+
 local function init(opts)
     if opts.is_master then
         init_space()
 
         box.schema.func.create('leaderboard_add_leader', {if_not_exists = true})
-        --box.schema.func.create('profile_get', {if_not_exists = true})
+        box.schema.func.create('leaderboard_get_rank', {if_not_exists = true})
         --box.schema.func.create('profile_update', {if_not_exists = true})
         --box.schema.func.create('profile_delete', {if_not_exists = true})
     end
 
     rawset(_G, 'leaderboard_add_leader', leaderboard_add_leader)
-    --rawset(_G, 'profile_get', profile_get)
+    rawset(_G, 'leaderboard_get_rank', leaderboard_get_rank)
     --rawset(_G, 'profile_update', profile_update)
     --rawset(_G, 'profile_delete', profile_delete)
 
@@ -72,6 +105,7 @@ return {
     init = init,
     utils = {
         leaderboard_add_leader = leaderboard_add_leader,
+        leaderboard_get_rank = leaderboard_get_rank
         --profile_update = profile_update,
         --profile_get = profile_get,
         --profile_delete = profile_delete,

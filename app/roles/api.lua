@@ -47,7 +47,7 @@ end
 
 local function profile_conflict_response(req)
     local resp = json_response(req, {
-        info = "Profile already exist"
+        info = "Leader already exist"
     }, 409)
     return resp
 end
@@ -91,6 +91,31 @@ local function http_leaderboard_add_leader(req)
     return json_response(req, {info = "Successfully Added the leader"}, 201)
 end
 
+local function http_leaderboard_get_rank(req)
+    local leader_id = tonumber(req:stash('leader_id'))
+    --local password = req:json().password
+    local router = cartridge.service_get('vshard-router').get()
+    local bucket_id = router:bucket_id(leader_id)
+
+    local resp, error = err_vshard_router:pcall(
+        router.call,
+        router,
+        bucket_id,
+        'read',
+        'leaderboard_get_rank',
+        {leader_id}
+    )
+
+    if error then
+        return internal_error_response(req, error)
+    end
+    if resp.error then
+        return storage_error_response(req, resp.error)
+    end
+
+    return json_response(req, resp.profile, 200)
+end
+
 local function init(opts)
     if opts.is_master then
         box.schema.user.grant('guest',
@@ -112,14 +137,15 @@ local function init(opts)
         { path = '/leader', method = 'POST', public = true },
         http_leaderboard_add_leader
     )
+    httpd:route(
+        { path = '/leader/:leader_id', method = 'GET', public = true },
+        http_leaderboard_get_rank
+    )
     --httpd:route(
     --    { path = '/leader/:leader_id', method = 'PUT', public = true },
     --    http_leaderboard_update_score
     --)
-    --httpd:route(
-    --    { path = '/leader/:leader_id', method = 'GET', public = true },
-    --    http_leaderboard_get_rank
-    --)
+
     --httpd:route(
     --    {path = '/leader/:leader_id', method = 'GET', public = true},
     --    http_leaderboard_get_adjacent_ranks
