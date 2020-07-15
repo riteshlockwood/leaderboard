@@ -68,7 +68,7 @@ local function http_leaderboard_add_leader(req)
     local leader = req:json()
 
     local router = cartridge.service_get('vshard-router').get()
-    local bucket_id = router:bucket_id(leader.leader_id)
+    local bucket_id = router:bucket_id(leader.leaderId)
     leader.bucket_id = bucket_id
     log.info("before pcall")
     local resp, error = err_vshard_router:pcall(
@@ -92,10 +92,10 @@ local function http_leaderboard_add_leader(req)
 end
 
 local function http_leaderboard_get_rank(req)
-    local leader_id = tonumber(req:stash('leader_id'))
+    local leaderId = tonumber(req:stash('leaderId'))
     --local password = req:json().password
     local router = cartridge.service_get('vshard-router').get()
-    local bucket_id = router:bucket_id(leader_id)
+    local bucket_id = router:bucket_id(leaderId)
 
     local resp, error = err_vshard_router:pcall(
         router.call,
@@ -103,7 +103,7 @@ local function http_leaderboard_get_rank(req)
         bucket_id,
         'read',
         'leaderboard_get_rank',
-        {leader_id}
+        {leaderId}
     )
 
     if error then
@@ -138,7 +138,7 @@ local function init(opts)
         http_leaderboard_add_leader
     )
     httpd:route(
-        { path = '/leader/:leader_id', method = 'GET', public = true },
+        { path = '/leader/:leaderId', method = 'GET', public = true },
         http_leaderboard_get_rank
     )
     --httpd:route(
