@@ -31,7 +31,7 @@ local function init_space()
         'leader',
         {
             format = {
-                {'leaderId', 'unsigned'},
+                {'leader_id', 'unsigned'},
                 {'bucket_id', 'unsigned'},
                 {'score', 'unsigned'}
             },
@@ -41,8 +41,8 @@ local function init_space()
     )
 
 
-    leader:create_index('leaderId', {
-        parts = {'leaderId'},
+    leader:create_index('leader_id', {
+        parts = {'leader_id'},
         if_not_exists = true,
     })
 
@@ -56,7 +56,7 @@ end
 local function leaderboard_add_leader(leader)
     checks('table')
     log.info("leaderboard_add_leader 1")
-    local exist = box.space.leader:get(leader.leaderId)
+    local exist = box.space.leader:get(leader.leader_id)
     if exist ~= nil then
         log.info("Leader already exist")
         return {ok = false, error = leaderboard_err_storage:new("Leader already exist")}

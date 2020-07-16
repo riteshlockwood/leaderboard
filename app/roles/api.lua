@@ -1,9 +1,10 @@
 local cartridge = require('cartridge')
+local vshard = require('vshard')
 local errors = require('errors')
 local log = require('log')
 local err_vshard_router = errors.new_class("Vshard routing error")
 local err_httpd = errors.new_class("httpd error")
-
+local checks = require('checks')
 
 --local function init(opts) -- luacheck: no unused args
 --    -- if opts.is_master then
@@ -32,6 +33,8 @@ local err_httpd = errors.new_class("httpd error")
 --end
 
 local function json_response(req, json, status)
+    checks('table', 'table', 'uint64')
+
     local resp = req:render({json = json})
     resp.status = status
     return resp
@@ -68,7 +71,7 @@ local function http_leaderboard_add_leader(req)
     local leader = req:json()
 
     local router = cartridge.service_get('vshard-router').get()
-    local bucket_id = router:bucket_id(leader.leaderId)
+    local bucket_id = router:bucket_id(leader.leader_id)
     leader.bucket_id = bucket_id
     log.info("before pcall")
     local resp, error = err_vshard_router:pcall(
@@ -92,10 +95,10 @@ local function http_leaderboard_add_leader(req)
 end
 
 local function http_leaderboard_get_rank(req)
-    local leaderId = tonumber(req:stash('leaderId'))
+    local leader_id = tonumber(req:stash('leader_id'))
     --local password = req:json().password
     local router = cartridge.service_get('vshard-router').get()
-    local bucket_id = router:bucket_id(leaderId)
+    local bucket_id = router:bucket_id(leader_id)
 
     local resp, error = err_vshard_router:pcall(
         router.call,
@@ -103,7 +106,7 @@ local function http_leaderboard_get_rank(req)
         bucket_id,
         'read',
         'leaderboard_get_rank',
-        {leaderId}
+        {leader_id}
     )
 
     if error then
@@ -113,7 +116,7 @@ local function http_leaderboard_get_rank(req)
         return storage_error_response(req, resp.error)
     end
 
-    return json_response(req, resp.profile, 200)
+    return json_response(req, resp.leader, 200)
 end
 
 local function init(opts)
@@ -138,7 +141,7 @@ local function init(opts)
         http_leaderboard_add_leader
     )
     httpd:route(
-        { path = '/leader/:leaderId', method = 'GET', public = true },
+        { path = '/leader/:leader_id', method = 'GET', public = true },
         http_leaderboard_get_rank
     )
     --httpd:route(
