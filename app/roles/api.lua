@@ -41,6 +41,7 @@ local function json_response(req, json, status)
 end
 
 local function internal_error_response(req, error)
+    checks('table', 'table')
     local resp = json_response(req, {
         info = "Internal error",
         error = error
@@ -49,6 +50,7 @@ local function internal_error_response(req, error)
 end
 
 local function profile_conflict_response(req)
+    checks('table')
     local resp = json_response(req, {
         info = "Leader already exist"
     }, 409)
@@ -56,6 +58,7 @@ local function profile_conflict_response(req)
 end
 
 local function storage_error_response(req, error)
+    checks('table', 'table')
     if error.err == "Leader already exist" then
         return profile_conflict_response(req)
     --elseif error.err == "Profile not found" then
@@ -68,6 +71,7 @@ local function storage_error_response(req, error)
 end
 
 local function http_leaderboard_add_leader(req)
+    checks('table')
     local leader = req:json()
 
     local router = cartridge.service_get('vshard-router').get()
@@ -95,6 +99,7 @@ local function http_leaderboard_add_leader(req)
 end
 
 local function http_leaderboard_get_rank(req)
+    checks('table')
     local leader_id = tonumber(req:stash('leader_id'))
     --local password = req:json().password
     local router = cartridge.service_get('vshard-router').get()
@@ -120,6 +125,7 @@ local function http_leaderboard_get_rank(req)
 end
 
 local function init(opts)
+    checks('table')
     if opts.is_master then
         box.schema.user.grant('guest',
             'read,write',
