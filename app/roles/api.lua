@@ -49,7 +49,7 @@ local function internal_error_response(req, error)
     return resp
 end
 
-local function profile_conflict_response(req)
+local function leader_conflict_response(req)
     checks('table')
     local resp = json_response(req, {
         info = "Leader already exist"
@@ -57,14 +57,22 @@ local function profile_conflict_response(req)
     return resp
 end
 
+local function leader_not_found_response(req)
+    local resp = json_response(req, {
+        info = "Leader not found"
+    }, 404)
+    return resp
+end
+
+
 local function storage_error_response(req, error)
     checks('table', 'table')
     if error.err == "Leader already exist" then
-        return profile_conflict_response(req)
-    --elseif error.err == "Profile not found" then
-    --    return profile_not_found_response(req)
+        return leader_conflict_response(req)
+    elseif error.err == "Leader not found" then
+        return leader_not_found_response(req)
     --elseif error.err == "Unauthorized" then
-    --    return profile_unauthorized(req)
+    --    return leader_unauthorized(req)
     else
         return internal_error_response(req, error)
     end
@@ -124,6 +132,36 @@ local function http_leaderboard_get_rank(req)
     return json_response(req, resp.leader, 200)
 end
 
+local function http_leaderboard_update_score(req)
+    checks('table')
+    log.info("RITESH: http_leaderboard_update_score 1");
+    local leader_id = tonumber(req:stash('leader_id'))
+    local data = req:json()
+    local changes = data.changes
+
+    local router = cartridge.service_get('vshard-router').get()
+    local bucket_id = router:bucket_id(leader_id)
+
+    local resp, error = err_vshard_router:pcall(
+        router.call,
+        router,
+        bucket_id,
+        'read',
+        'leaderboard_update_score',
+        {leader_id, changes}
+    )
+
+    if error then
+        return internal_error_response(req,error)
+    end
+    if resp.error then
+        return storage_error_response(req, resp.error)
+    end
+
+    log.info("RITESH: http_leaderboard_update_score");
+    return json_response(req, resp.leader, 200)
+end
+
 local function init(opts)
     checks('table')
     if opts.is_master then
@@ -150,10 +188,10 @@ local function init(opts)
         { path = '/leader/:leader_id', method = 'GET', public = true },
         http_leaderboard_get_rank
     )
-    --httpd:route(
-    --    { path = '/leader/:leader_id', method = 'PUT', public = true },
-    --    http_leaderboard_update_score
-    --)
+    httpd:route(
+        { path = '/leader/:leader_id', method = 'PUT', public = true },
+        http_leaderboard_update_score
+    )
 
     --httpd:route(
     --    {path = '/leader/:leader_id', method = 'GET', public = true},
