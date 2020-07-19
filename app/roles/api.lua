@@ -162,6 +162,31 @@ local function http_leaderboard_update_score(req)
     return json_response(req, resp.leader, 200)
 end
 
+local function http_leaderboard_delete_leader(req)
+    checks('table')
+    local leader_id = tonumber(req:stash('leader_id'))
+    local router = cartridge.service_get('vshard-router').get()
+    local bucket_id = router:bucket_id(leader_id)
+
+    local resp, error = err_vshard_router:pcall(
+        router.call,
+        router,
+        bucket_id,
+        'write',
+        'leaderboard_delete_leader',
+        {leader_id}
+    )
+
+    if error then
+        return internal_error_response(req, error)
+    end
+    if resp.error then
+        return storage_error_response(req, resp.error)
+    end
+
+    return json_response(req, {info = "Deleted"}, 200)
+end
+
 local function init(opts)
     checks('table')
     if opts.is_master then
@@ -197,10 +222,10 @@ local function init(opts)
     --    {path = '/leader/:leader_id', method = 'GET', public = true},
     --    http_leaderboard_get_adjacent_ranks
     --)
-    --httpd:route(
-    --    {path = '/leader/:leader_id', method = 'DELETE', public = true},
-    --    http_leaderboard_delete_leader
-    --)
+    httpd:route(
+        {path = '/leader/:leader_id', method = 'DELETE', public = true},
+        http_leaderboard_delete_leader
+    )
 
     log.info("Created httpd")
     return true
